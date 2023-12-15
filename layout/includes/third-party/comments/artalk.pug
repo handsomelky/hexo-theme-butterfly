@@ -1,9 +1,8 @@
 - const { server, site, option } = theme.artalk
-- const { use, lazyload } = theme.comments
 
 script.
-  (() => {
-    const initArtalk = () => {
+  function loadArtalk () {
+    function initArtalk () {
       window.artalkItem = new Artalk(Object.assign({
         el: '#artalk-wrap',
         server: '!{server}',
@@ -24,29 +23,28 @@ script.
       })
     }
 
-    const loadArtalk = async () => {
-      if (typeof window.artalkItem === 'object') initArtalk()
-      else {
-        await getCSS('!{theme.asset.artalk_css}')
-        await getScript('!{theme.asset.artalk_js}')
-        initArtalk()
-      }
+    if (typeof window.artalkItem === 'object') initArtalk()
+    else {
+      getCSS('!{theme.asset.artalk_css}').then(()=>{
+        getScript('!{theme.asset.artalk_js}').then(initArtalk)
+      })
     }
+  }
 
-    const artalkChangeMode = theme => {
-      const artalkWrap = document.getElementById('artalk-wrap')
-      if (!(artalkWrap && artalkWrap.children.length)) return
-      const isDark = theme === 'dark'
-      window.artalkItem.setDarkMode(isDark)
-    }
+  function artalkChangeMode (theme) {
+    const artalkWrap = document.getElementById('artalk-wrap')
+    if (!(artalkWrap && artalkWrap.children.length)) return
+    const isDark = theme === 'dark'
+    window.artalkItem.setDarkMode(isDark)
+  }
+
+  btf.addModeChange('artalk', artalkChangeMode)
   
-
-    btf.addGlobalFn('themeChange', artalkChangeMode, 'artalk')
-    
-    if ('!{use[0]}' === 'Artalk' || !!{lazyload}) {
-      if (!{lazyload}) btf.loadComment(document.getElementById('artalk-wrap'), loadArtalk)
-      else loadArtalk()
-    } else {
-      window.loadOtherComment = loadArtalk
+  if ('!{theme.comments.use[0]}' === 'Artalk' || !!{theme.comments.lazyload}) {
+    if (!{theme.comments.lazyload}) btf.loadComment(document.getElementById('artalk-wrap'), loadArtalk)
+    else loadArtalk()
+  } else {
+    function loadOtherComment () {
+      loadArtalk()
     }
-  })()
+  }

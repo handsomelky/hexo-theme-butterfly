@@ -1,3 +1,10 @@
+/**
+ * Butterfly
+ * @example
+ *  page_description()
+ *  cloudTags(source, minfontsize, maxfontsize, limit)
+ */
+
 'use strict'
 
 const { stripHTML, escapeHTML, prettyUrls } = require('hexo-util')
@@ -39,7 +46,7 @@ hexo.extend.helper.register('cloudTags', function (options = {}) {
     let style = `font-size: ${parseFloat(size.toFixed(2))}${unit};`
     const color = 'rgb(' + Math.floor(Math.random() * 201) + ', ' + Math.floor(Math.random() * 201) + ', ' + Math.floor(Math.random() * 201) + ')' // 0,0,0 -> 200,200,200
     style += ` color: ${color}`
-    result += `<a href="${env.url_for(tag.path)}" style="${style}">${tag.name}</a>`
+    result += `<a href="${env.url_for(tag.path)}" style="${style}">${tag.name}<sup>${tag.length}</sup></a>`
   })
   return result
 })
@@ -53,8 +60,12 @@ hexo.extend.helper.register('md5', function (path) {
 })
 
 hexo.extend.helper.register('injectHtml', function (data) {
+  let result = ''
   if (!data) return ''
-  return data.join('')
+  for (let i = 0; i < data.length; i++) {
+    result += data[i]
+  }
+  return result
 })
 
 hexo.extend.helper.register('findArchivesTitle', function (page, menu, date) {
@@ -84,5 +95,8 @@ hexo.extend.helper.register('findArchivesTitle', function (page, menu, date) {
 
 hexo.extend.helper.register('isImgOrUrl', function (path) {
   const imgTestReg = /\.(png|jpe?g|gif|svg|webp)(\?.*)?$/i
-  return path.indexOf('//') !== -1 || imgTestReg.test(path)
+  if (path.indexOf('//') !== -1 || imgTestReg.test(path)) {
+    return true
+  }
+  return false
 })

@@ -62,11 +62,6 @@
         transition: all .2s ease-in-out
         -webkit-line-clamp: 2
 
-        .sticky
-          margin-right: 10px
-          color: $sticky-color
-          transform: rotate(45deg)
-
         +maxWidth768()
           font-size: 1.43em
 
@@ -80,6 +75,9 @@
 
         & > .post-meta-date
           cursor: default
+
+        .sticky
+          color: $sticky-color
 
         i
           margin: 0 4px 0 0
