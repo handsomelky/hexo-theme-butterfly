@@ -7,99 +7,87 @@
 
 hexo.extend.helper.register('inject_head_js', function () {
   const { darkmode, aside } = this.theme
-  const start = darkmode.start || 6
-  const end = darkmode.end || 18
+  const start = darkmode.start ? darkmode.start : 6
+  const end = darkmode.end ? darkmode.end : 18
   const { theme_color } = hexo.theme.config
   const themeColorLight = (theme_color && theme_color.enable && theme_color.meta_theme_color_light) || '#ffffff'
   const themeColorDark = (theme_color && theme_color.enable && theme_color.meta_theme_color_dark) || '#0d0d0d'
 
-  const createLocalStore = () => {
-    return `
-      win.saveToLocal = {
-        set: (key, value, ttl) => {
-          if (ttl === 0) return
-          const now = Date.now()
-          const expiry = now + ttl * 86400000
-          const item = {
-            value,
-            expiry
-          }
-          localStorage.setItem(key, JSON.stringify(item))
-        },
-      
-        get: key => {
-          const itemStr = localStorage.getItem(key)
-      
-          if (!itemStr) {
-            return undefined
-          }
-          const item = JSON.parse(itemStr)
-          const now = Date.now()
-      
-          if (now > item.expiry) {
-            localStorage.removeItem(key)
-            return undefined
-          }
-          return item.value
+  const localStore = `
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
         }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
       }
-    `
-  }
+    }
+  `
 
   // https://stackoverflow.com/questions/16839698/jquery-getscript-alternative-in-native-javascript
-  const createGetScript = () => {
-    return `
-      win.getScript = (url, attr = {}) => new Promise((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = url
-        script.async = true
-        script.onerror = reject
-        script.onload = script.onreadystatechange = function() {
-          const loadState = this.readyState
-          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
-          script.onload = script.onreadystatechange = null
-          resolve()
-        }
+  const getScript = `
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  `
 
-        Object.keys(attr).forEach(key => {
-          script.setAttribute(key, attr[key])
-        })
+  const getCSS = `
+    win.getCSS = (url,id = false) => new Promise((resolve, reject) => {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = url
+      if (id) link.id = id
+      link.onerror = reject
+      link.onload = link.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        link.onload = link.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(link)
+    })
+  `
 
-        document.head.appendChild(script)
-      })
-    `
-  }
-
-  const createGetCSS = () => {
-    return `
-      win.getCSS = (url, id = false) => new Promise((resolve, reject) => {
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = url
-        if (id) link.id = id
-        link.onerror = reject
-        link.onload = link.onreadystatechange = function() {
-          const loadState = this.readyState
-          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
-          link.onload = link.onreadystatechange = null
-          resolve()
-        }
-        document.head.appendChild(link)
-      })
-    `
-  }
-
-  const createDarkmodeJs = () => {
-    if (!darkmode.enable) return ''
-
-    let darkmodeJs = `
-      win.activateDarkMode = () => {
+  let darkmodeJs = ''
+  if (darkmode.enable) {
+    darkmodeJs = `
+      win.activateDarkMode = function () {
         document.documentElement.setAttribute('data-theme', 'dark')
         if (document.querySelector('meta[name="theme-color"]') !== null) {
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '${themeColorDark}')
         }
       }
-      win.activateLightMode = () => {
+      win.activateLightMode = function () {
         document.documentElement.setAttribute('data-theme', 'light')
         if (document.querySelector('meta[name="theme-color"]') !== null) {
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '${themeColorLight}')
@@ -126,7 +114,7 @@ hexo.extend.helper.register('inject_head_js', function () {
               const isNight = hour <= ${start} || hour >= ${end}
               isNight ? activateDarkMode() : activateLightMode()
             }
-            window.matchMedia('(prefers-color-scheme: dark)').addListener(e => {
+            window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
               if (saveToLocal.get('theme') === undefined) {
                 e.matches ? activateDarkMode() : activateLightMode()
               }
@@ -145,18 +133,15 @@ hexo.extend.helper.register('inject_head_js', function () {
         `
     } else {
       darkmodeJs += `
-        if (t === 'dark') activateDarkMode()
-        else if (t === 'light') activateLightMode()
-      `
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        `
     }
-
-    return darkmodeJs
   }
 
-  const createAsideStatus = () => {
-    if (!aside.enable || !aside.button) return ''
-
-    return `
+  let asideStatus = ''
+  if (aside.enable && aside.button) {
+    asideStatus = `
       const asideStatus = saveToLocal.get('aside-status')
       if (asideStatus !== undefined) {
         if (asideStatus === 'hide') {
@@ -168,16 +153,14 @@ hexo.extend.helper.register('inject_head_js', function () {
     `
   }
 
-  const createDetectApple = () => {
-    return `
-      const detectApple = () => {
-        if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
-          document.documentElement.classList.add('apple')
-        }
+  const detectApple = `
+    const detectApple = () => {
+      if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
       }
-      detectApple()
+    }
+    detectApple()
     `
-  }
 
-  return `<script>(win=>{${createLocalStore() + createGetScript() + createGetCSS() + createDarkmodeJs() + createAsideStatus() + createDetectApple()}})(window)</script>`
+  return `<script>(win=>{${localStore + getScript + getCSS + darkmodeJs + asideStatus + detectApple}})(window)</script>`
 })

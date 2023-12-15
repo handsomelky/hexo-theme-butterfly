@@ -145,7 +145,18 @@ if hexo-config('readmode')
           background: transparent
 
           > .tab
-            border-top: none !important
+            border-bottom: 0
+
+            button
+              border-top: none !important
+              background: transparent
+
+              &:hover
+                background: none !important
+
+            &.active
+              button
+                text-decoration: underline
 
         > .tab-contents .tab-item-content.active
           animation: none
